@@ -102,6 +102,7 @@
     </div>
 
     <div class="controls">
+        <input id="nameInput" placeholder="Enter Your Name" type="text" />
         <input id="roomInput" placeholder="Enter Room Name" type="text" />
         <button id="joinBtn">Join Call</button>
         <button id="leaveBtn" disabled>Leave Call</button>
@@ -121,7 +122,10 @@
     <div class="status">
         <span id="statusText" class="status-disconnected">Status: Disconnected</span>
     </div>
-
+    <div>
+        <h3>Participants:</h3>
+        <ul id="participantList" style="list-style:none; padding:0;"></ul>
+    </div>
     <a id="downloadLink" style="display:none" download="recording.webm">Download Recording</a>
 
     <script src="/socket.io/socket.io.js"></script>

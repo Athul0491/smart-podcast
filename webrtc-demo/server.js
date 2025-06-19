@@ -7,6 +7,8 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 
+const rooms = {}; // { roomName: Map<socketId, userName> }
+
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -17,20 +19,39 @@ app.get('/', (req, res) => {
 
 // Socket handling
 io.on("connection", (socket) => {
-    socket.on("join-room", (roomName) => {
-        const room = io.sockets.adapter.rooms.get(roomName);
-        const numClients = room ? room.size : 0;
+    socket.on("join-room", ({ room, name }) => {
+        socket.join(room);
+        socket.roomName = room;
+        socket.userName = name;
 
-        socket.join(roomName);
+        if (!rooms[room]) rooms[room] = new Map();
+        rooms[room].set(socket.id, name);
 
-        if (numClients === 0) {
-            socket.emit("room-joined", { initiator: true });
-        } else if (numClients === 1) {
-            socket.emit("room-joined", { initiator: false });
-            socket.to(roomName).emit("peer-joined");
-        } else {
-            socket.emit("room-full");
+        socket.emit("room-joined", { initiator: rooms[room].size === 1 });
+
+        // Send participant list
+        const participants = Array.from(rooms[room]).map(([id, name]) => ({ id, name }));
+        io.in(room).emit("participants", participants);
+
+        if (rooms[room].size === 2) {
+            socket.to(room).emit("peer-joined");
         }
+    });
+
+    socket.on("disconnect", () => {
+        const room = socket.roomName;
+        if (room && rooms[room]) {
+            rooms[room].delete(socket.id);
+
+            const participants = Array.from(rooms[room]).map(([id, name]) => ({ id, name }));
+            io.in(room).emit("participants", participants);
+
+            if (rooms[room].size === 0) delete rooms[room];
+        }
+    });
+    
+    socket.on("ready", (room) => {
+        socket.to(room).emit("ready");
     });
 
     socket.on("offer", ({ room, offer }) => {
