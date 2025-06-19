@@ -14,10 +14,17 @@ let localStream, peerConnection, room;
 let isInitiator = false;
 
 // UI Updates
-const updateStatus = (text, color = "gray") => {
-    statusText.textContent = "Status: " + text;
-    statusText.style.color = color;
-};
+function updateStatus(text, color = "gray") {
+    const statusEl = document.getElementById("statusText");
+    statusEl.textContent = "Status: " + text;
+    statusEl.className = "";
+
+    if (color === "green") statusEl.classList.add("status-connected");
+    else if (color === "orange") statusEl.classList.add("status-waiting");
+    else if (color === "red") statusEl.classList.add("status-disconnected");
+    else statusEl.style.color = color; // fallback
+}
+
 
 const setCallUI = ({ joined, connected }) => {
     joinBtn.disabled = joined;
