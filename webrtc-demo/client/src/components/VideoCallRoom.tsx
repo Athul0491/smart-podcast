@@ -26,6 +26,7 @@ export default function VideoCall() {
     const [camOn, setCamOn] = useState(true);
     const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
     const [remoteVideoKey, setRemoteVideoKey] = useState(Date.now());
+    const [uploading, setUploading] = useState(false);
 
     const updateStatus = (text: string) => setStatus(text);
 
@@ -179,19 +180,52 @@ export default function VideoCall() {
         }
     };
 
+    const chunkIndexRef = useRef(0); // ⬅️ Track the chunk index globally
+
     const startRecording = () => {
         if (!localStreamRef.current) return;
+
         const recorder = new MediaRecorder(localStreamRef.current, { mimeType: 'video/webm' });
         mediaRecorderRef.current = recorder;
-        const chunks: Blob[] = [];
-        recorder.ondataavailable = (e) => e.data.size > 0 && chunks.push(e.data);
-        recorder.onstop = () => setRecordedChunks(chunks);
-        recorder.start();
+        chunkIndexRef.current = 0; // ⬅️ Reset index when recording starts
+
+        recorder.ondataavailable = async (event) => {
+            if (event.data.size > 0) {
+                const index = chunkIndexRef.current;
+                console.log(`🔹 Got chunk #${index}`);
+                await uploadChunk(event.data, index); // ⬅️ Pass the index
+                chunkIndexRef.current += 1;
+            }
+        };
+
+        recorder.start(5000); // 5-second chunks
+        setUploading(true);
     };
+
+
 
     const stopRecording = () => {
         mediaRecorderRef.current?.stop();
+        setUploading(false);
     };
+
+    const uploadChunk = async (blob: Blob, index: number) => {
+        const formData = new FormData();
+        formData.append('chunk', blob);
+        formData.append('name', name);
+        formData.append('index', index.toString());
+
+        try {
+            await fetch('http://localhost:3000/upload-chunk', {
+                method: 'POST',
+                body: formData,
+            });
+            console.log(`✅ Uploaded ${name}_${index}.webm`);
+        } catch (err) {
+            console.error(`Failed to upload chunk ${index}:`, err);
+        }
+    };
+
 
     const canControlMicCam = joined;
     const canRecord = joined; // or `connected` if you prefer stricter control
