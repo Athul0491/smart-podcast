@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WebRTC P2P Call</title>
+</head>
+<body>
+    <h1>WebRTC Demo</h1>
+    <video id="localVideo" autoplay playsinline muted></video>
+    <video id="remoteVideo" autoplay playsinline></video>
+
+    <div>
+        <input id="roomInput" placeholder="Enter Room Name" />
+        <button id="joinBtn">Join Call</button>
+        <button id="leaveBtn" disabled>Leave Call</button>
+
+    </div>
+    <div>
+        <button id="startBtn">Start Recording</button>
+        <button id="stopBtn" disabled>Stop Recording</button>
+        <a id="downloadLink" style="display:none" download="recording.webm">Download Recording</a>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+
+</body>
+</html>

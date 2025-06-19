@@ -1,0 +1,48 @@
+// server.js
+const express = require('express');
+const http = require('http');
+const socketIO = require('socket.io');
+const path = require('path');
+
+const app = express();
+const server = http.createServer(app);
+const io = socketIO(server);
+// Serve static files from "public" folder
+app.use(express.static(path.join(__dirname, 'public')));
+
+// If someone visits '/', serve index.html
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+io.on("connection", (socket) => {
+  socket.on("join-room", (roomName) => {
+    const room = io.sockets.adapter.rooms.get(roomName);
+    const numClients = room ? room.size : 0;
+
+    if (numClients === 0) {
+      socket.join(roomName);
+      socket.emit("room-joined");
+    } else if (numClients === 1) {
+      socket.join(roomName);
+      socket.emit("room-joined-second");
+    } else {
+      socket.emit("room-full");
+    }
+  });
+
+  socket.on("offer", ({ room, offer }) => {
+    socket.to(room).emit("offer", { offer });
+  });
+
+  socket.on("answer", ({ room, answer }) => {
+    socket.to(room).emit("answer", { answer });
+  });
+
+  socket.on("candidate", ({ room, candidate }) => {
+    socket.to(room).emit("candidate", { candidate });
+  });
+});
+
+server.listen(3000, () => {
+  console.log('Server running at http://localhost:3000');
+});
