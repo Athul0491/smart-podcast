@@ -19,12 +19,13 @@ io.on("connection", (socket) => {
     const room = io.sockets.adapter.rooms.get(roomName);
     const numClients = room ? room.size : 0;
 
+    socket.join(roomName);
+
     if (numClients === 0) {
-      socket.join(roomName);
-      socket.emit("room-joined");
+      socket.emit("room-joined", { initiator: true });
     } else if (numClients === 1) {
-      socket.join(roomName);
-      socket.emit("room-joined-second");
+      socket.emit("room-joined", { initiator: false }); // ✅ <-- THIS WAS MISSING
+      socket.to(roomName).emit("peer-joined");
     } else {
       socket.emit("room-full");
     }
@@ -40,6 +41,14 @@ io.on("connection", (socket) => {
 
   socket.on("candidate", ({ room, candidate }) => {
     socket.to(room).emit("candidate", { candidate });
+  });
+
+  socket.on("disconnecting", () => {
+    for (const room of socket.rooms) {
+      if (room !== socket.id) {
+        socket.to(room).emit("peer-disconnected");
+      }
+    }
   });
 });
 
