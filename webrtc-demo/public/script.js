@@ -9,6 +9,8 @@ const leaveBtn = document.getElementById('leaveBtn');
 const startRecordingBtn = document.getElementById('startBtn');
 const stopRecordingBtn = document.getElementById('stopBtn');
 const statusText = document.getElementById("statusText");
+const micBtn = document.getElementById("micBtn");
+const camBtn = document.getElementById("camBtn");
 
 let localStream, peerConnection, room;
 let isInitiator = false;
@@ -49,6 +51,8 @@ socket.on("room-joined", async ({ initiator }) => {
 
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     localVideo.srcObject = localStream;
+    micBtn.disabled = false;
+    camBtn.disabled = false;
 
     await createPeerConnection();
     setCallUI({ joined: true, connected: false });
@@ -82,6 +86,22 @@ leaveBtn.onclick = () => {
     setCallUI({ joined: false, connected: false });
     updateStatus("Disconnected", "gray");
     console.log("Call ended");
+};
+
+micBtn.onclick = () => {
+    const audioTrack = localStream.getAudioTracks()[0];
+    if (!audioTrack) return;
+
+    audioTrack.enabled = !audioTrack.enabled;
+    micBtn.textContent = audioTrack.enabled ? "Mute Mic" : "Unmute Mic";
+};
+
+camBtn.onclick = () => {
+    const videoTrack = localStream.getVideoTracks()[0];
+    if (!videoTrack) return;
+
+    videoTrack.enabled = !videoTrack.enabled;
+    camBtn.textContent = videoTrack.enabled ? "Turn Off Camera" : "Turn On Camera";
 };
 
 // WebRTC
