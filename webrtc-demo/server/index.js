@@ -2,22 +2,29 @@ const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
 const path = require('path');
+const cors = require('cors');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIO(server);
+const io = socketIO(server, {
+    cors: {
+        origin: "http://localhost:5173",
+        methods: ["GET", "POST"],
+        credentials: true
+    }
+});
+
+app.use(cors({
+    origin: 'http://localhost:5173',
+    methods: ['GET', 'POST'],
+    credentials: true
+}));
 
 const rooms = {}; // { roomName: Map<socketId, userName> }
 
-// Serve static files
-app.use(express.static(path.join(__dirname,'..', 'public')));
+app.use(express.static(path.join(__dirname, '..', 'public')));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'index.html')));
 
-// Serve homepage
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
-});
-
-// Socket handling
 io.on("connection", (socket) => {
     socket.on("join-room", ({ room, name }) => {
         socket.join(room);
@@ -29,7 +36,6 @@ io.on("connection", (socket) => {
 
         socket.emit("room-joined", { initiator: rooms[room].size === 1 });
 
-        // Send participant list
         const participants = Array.from(rooms[room]).map(([id, name]) => ({ id, name }));
         io.in(room).emit("participants", participants);
 
@@ -42,40 +48,19 @@ io.on("connection", (socket) => {
         const room = socket.roomName;
         if (room && rooms[room]) {
             rooms[room].delete(socket.id);
-
             const participants = Array.from(rooms[room]).map(([id, name]) => ({ id, name }));
             io.in(room).emit("participants", participants);
-
+            socket.to(room).emit("peer-disconnected");
             if (rooms[room].size === 0) delete rooms[room];
         }
     });
-    
-    socket.on("ready", (room) => {
-        socket.to(room).emit("ready");
-    });
 
-    socket.on("offer", ({ room, offer }) => {
-        socket.to(room).emit("offer", { offer });
-    });
-
-    socket.on("answer", ({ room, answer }) => {
-        socket.to(room).emit("answer", { answer });
-    });
-
-    socket.on("candidate", ({ room, candidate }) => {
-        socket.to(room).emit("candidate", { candidate });
-    });
-
-    socket.on("disconnecting", () => {
-        for (const room of socket.rooms) {
-            if (room !== socket.id) {
-                socket.to(room).emit("peer-disconnected");
-            }
-        }
-    });
+    socket.on("ready", (room) => socket.to(room).emit("ready"));
+    socket.on("offer", ({ room, offer }) => socket.to(room).emit("offer", { offer }));
+    socket.on("answer", ({ room, answer }) => socket.to(room).emit("answer", { answer }));
+    socket.on("candidate", ({ room, candidate }) => socket.to(room).emit("candidate", { candidate }));
 });
 
-// Start server
 server.listen(3000, () => {
     console.log('Server running at http://localhost:3000');
 });
