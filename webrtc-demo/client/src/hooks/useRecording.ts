@@ -13,6 +13,7 @@ export default function useRecording({ session, localStreamRef, name }: Props) {
   const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunkIndexRef = useRef(0);
+  const sessionFolderRef = useRef('');
 
   const startRecording = () => {
     const stream = localStreamRef.current;
@@ -21,7 +22,10 @@ export default function useRecording({ session, localStreamRef, name }: Props) {
       return;
     }
 
-    const userId = session.user.id;
+    const userEmail = session.user.email?.replace(/[^a-zA-Z0-9]/g, '_') || session.user.id;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const sessionFolder = `${userEmail}/session_${timestamp}`;
+    sessionFolderRef.current = sessionFolder;
     chunkIndexRef.current = 0;
 
     const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
@@ -31,8 +35,8 @@ export default function useRecording({ session, localStreamRef, name }: Props) {
       if (event.data.size === 0) return;
 
       const chunk = event.data;
-      const currentIndex = chunkIndexRef.current;
-      const filename = `${userId}/${name}_${currentIndex}.webm`;
+      const index = chunkIndexRef.current;
+      const filename = `${sessionFolderRef.current}/part_${index}.webm`;
 
       setRecordedChunks(prevChunks => [...prevChunks, chunk]);
       await uploadChunk(filename, chunk);
