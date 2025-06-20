@@ -1,3 +1,4 @@
 **/node_modules/
 **/package-lock.json
 /webrtc-demo/server/uploads
+/webrtc-demo/client/.env
