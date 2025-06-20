@@ -1,12 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { supabase } from '../lib/supabaseClient';
+import type { Session } from '@supabase/supabase-js';
+
+interface Props {
+    session: Session;
+    onLogout: () => void;
+}
+
 
 interface Participant {
     id: string;
     name: string;
 }
 
-export default function VideoCall() {
+export default function VideoCall({ session, onLogout }: Props) {
     const localVideoRef = useRef<HTMLVideoElement>(null);
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
     const peerRef = useRef<RTCPeerConnection | null>(null);
@@ -113,7 +121,7 @@ export default function VideoCall() {
         return () => {
             socket.disconnect();
         };
-    }, []);
+    }, [session]);
 
     const createPeerConnection = async () => {
         if (peerRef.current) return;
@@ -185,15 +193,16 @@ export default function VideoCall() {
     const startRecording = () => {
         if (!localStreamRef.current) return;
 
+        const userId = session.user.id;
+        chunkIndexRef.current = 0;
+
         const recorder = new MediaRecorder(localStreamRef.current, { mimeType: 'video/webm' });
         mediaRecorderRef.current = recorder;
-        chunkIndexRef.current = 0; // ⬅️ Reset index when recording starts
 
         recorder.ondataavailable = async (event) => {
             if (event.data.size > 0) {
                 const index = chunkIndexRef.current;
-                console.log(`🔹 Got chunk #${index}`);
-                await uploadChunk(event.data, index); // ⬅️ Pass the index
+                await uploadChunk(event.data, index, userId);
                 chunkIndexRef.current += 1;
             }
         };
@@ -203,26 +212,25 @@ export default function VideoCall() {
     };
 
 
-
     const stopRecording = () => {
         mediaRecorderRef.current?.stop();
         setUploading(false);
     };
 
-    const uploadChunk = async (blob: Blob, index: number) => {
-        const formData = new FormData();
-        formData.append('chunk', blob);
-        formData.append('name', name);
-        formData.append('index', index.toString());
+    const uploadChunk = async (blob: Blob, index: number, userId: string) => {
+        const filename = `${userId}/${name}_${index}.webm`; // Store under user folder
 
-        try {
-            await fetch('http://localhost:3000/upload-chunk', {
-                method: 'POST',
-                body: formData,
+        const { error } = await supabase.storage
+            .from('recordings')
+            .upload(filename, blob, {
+                upsert: true,
+                contentType: 'video/webm',
             });
-            console.log(`✅ Uploaded ${name}_${index}.webm`);
-        } catch (err) {
-            console.error(`Failed to upload chunk ${index}:`, err);
+
+        if (error) {
+            console.error('❌ Upload failed:', error.message);
+        } else {
+            console.log(`✅ Uploaded: ${filename}`);
         }
     };
 
@@ -235,6 +243,9 @@ export default function VideoCall() {
     return (
         <div style={{ textAlign: 'center', fontFamily: 'Arial, sans-serif', backgroundColor: '#f5f5f5', minHeight: '100vh', padding: '20px', color: '#000' }}>
             <h1 style={{ marginBottom: '24px' }}>WebRTC Demo</h1>
+            <h2 style={{ marginBottom: '20px', fontWeight: 400 }}>
+                Welcome, {session.user.user_metadata?.full_name || session.user.email || 'User'}!
+            </h2>
 
             <div style={{ display: 'flex', justifyContent: 'center', gap: 40, marginBottom: 20 }}>
                 <video ref={localVideoRef} autoPlay muted playsInline style={{ width: 320, height: 240, background: '#e0e0e0', borderRadius: 6, border: '1px solid #ccc' }} />
@@ -273,6 +284,9 @@ export default function VideoCall() {
             </button>
             <button onClick={stopRecording} disabled={!joined} className="button">
                 Stop Recording
+            </button>
+            <button onClick={onLogout} style={{ marginTop: 20, backgroundColor: 'red', color: 'white', padding: '8px 12px', border: 'none', borderRadius: '4px' }}>
+                Logout
             </button>
 
 
