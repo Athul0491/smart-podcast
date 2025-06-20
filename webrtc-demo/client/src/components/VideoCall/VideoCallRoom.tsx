@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 
-import AppHeader from './AppHeader';
-import ParticipantsList from './ParticipantsList';
-import RoomInputs from './RoomInputs';
-import CallControls from './CallControls/CallControls';
-import RecordingDownload from './RecordingDownload';
+import AppHeader from '../Header/AppHeader';
+import ParticipantsList from '../RoomAccess/ParticipantsList';
+import RoomInputs from '../RoomAccess/RoomInputs';
+import CallControls from '../CallControls/CallControls';
+import RecordingDownload from '../Recording/RecordingDownload';
 
-import useMediaStream from '../hooks/useMediaStream';
-import usePeerConnection from '../hooks/usePeerConnection';
-import useRecording from '../hooks/useRecording';
+import useMediaStream from '../../hooks/useMediaStream';
+import usePeerConnection from '../../hooks/usePeerConnection';
+import useRecording from '../../hooks/useRecording';
 
 interface VideoCallRoomProps {
     session: Session;

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './lib/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
-import VideoCallRoom from './components/VideoCallRoom';
-import Login from './components/Login';
+import VideoCallRoom from './components/VideoCall/VideoCallRoom';
+import Login from './components/auth/Login';
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
