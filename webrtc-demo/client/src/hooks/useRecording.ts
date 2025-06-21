@@ -1,6 +1,12 @@
 import { useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
+import {
+  fetchChunkFiles,
+  combineChunksToBlob,
+  uploadCombinedBlob,
+  deleteOriginalChunks,
+} from '../utils/recordingUtils';
 
 interface Props {
   session: Session;
@@ -14,6 +20,8 @@ export default function useRecording({ session, localStreamRef, name }: Props) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunkIndexRef = useRef(0);
   const sessionFolderRef = useRef('');
+  const sessionId = useRef(`session_${new Date().toISOString()}`);
+
 
   const startRecording = () => {
     const stream = localStreamRef.current;
@@ -22,9 +30,10 @@ export default function useRecording({ session, localStreamRef, name }: Props) {
       return;
     }
 
-    const userEmail = session.user.email?.replace(/[^a-zA-Z0-9]/g, '_') || session.user.id;
+    const userId = session.user.id;
+    // const userEmail = session.user.email?.replace(/[^a-zA-Z0-9]/g, '_') || session.user.id;
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const sessionFolder = `${userEmail}/session_${timestamp}`;
+    const sessionFolder = `${userId}/session_${timestamp}`;
     sessionFolderRef.current = sessionFolder;
     chunkIndexRef.current = 0;
 
@@ -56,6 +65,36 @@ export default function useRecording({ session, localStreamRef, name }: Props) {
       setUploading(false);
       console.log('🛑 Recording stopped');
     }
+
+    setTimeout(async () => {
+      const userId = session.user.id;
+      const sessionFolder = sessionFolderRef.current;
+      const sessionName = sessionFolder.split('/')[1];
+
+      console.log('📥 Fetching chunk files...');
+      const files = await fetchChunkFiles(userId, sessionName); // sessionName only
+
+      if (files.length === 0) {
+        console.warn('⚠️ No chunk files found to combine.');
+        return;
+      }
+
+      console.log('🔗 Combining chunks...');
+      const blob = await combineChunksToBlob(files);
+      if (!blob) {
+        console.error('❌ Failed to create combined blob.');
+        return;
+      }
+
+      console.log('⬆️ Uploading combined video...');
+      const uploadSuccess = await uploadCombinedBlob(userId, sessionName, blob, name);
+
+      if (uploadSuccess) {
+        console.log('✅ Combined video uploaded successfully.');
+        await deleteOriginalChunks(userId, sessionName);
+      }
+    }, 3000); // wait 3s to ensure last chunk uploads
+
   };
 
   const uploadChunk = async (filename: string, data: Blob) => {
@@ -78,5 +117,6 @@ export default function useRecording({ session, localStreamRef, name }: Props) {
     stopRecording,
     uploading,
     recordedChunks,
+    sessionId: sessionId.current,
   };
 }

@@ -6,6 +6,7 @@ import ParticipantsList from '../RoomAccess/ParticipantsList';
 import RoomInputs from '../RoomAccess/RoomInputs';
 import CallControls from '../CallControls/CallControls';
 import RecordingDownload from '../Recording/RecordingDownload';
+import PastRecordings from '../Recording/PastRecordings';
 
 import useMediaStream from '../../hooks/useMediaStream';
 import usePeerConnection from '../../hooks/usePeerConnection';
@@ -118,6 +119,7 @@ export default function VideoCallRoom({ session, onLogout }: VideoCallRoomProps)
                     socketId={socketRef.current?.id}
                 />
             )}
+            <PastRecordings userId={session.user.id} />
 
             <RecordingDownload recordedChunks={recordedChunks} />
         </main>
